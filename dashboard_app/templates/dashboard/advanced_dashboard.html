@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Real-Time Dashboard - MongoDB NoSQL</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+            display: inline-block;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 15px;
+            animation: pulse 2s infinite;
+        }
+        .status-badge.live { background: #4CAF50; color: white; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card h3 { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 32px; font-weight: bold; color: #667eea; }
+        .stat-card .label { font-size: 12px; color: #999; margin-top: 5px; }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .chart-card h2 { 
+            color: #333; 
+            font-size: 18px; 
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .chart-container { height: 300px; position: relative; }
+        
+        .data-tables {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+        
+        .table-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .table-card h2 { 
+            color: #333; 
+            font-size: 18px; 
+            margin-bottom: 15px;
+            border-bottom: 2px solid #764ba2;
+            padding-bottom: 10px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; color: #555; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f8f9fa; }
+        
+        .badge { 
+            padding: 4px 10px; 
+            border-radius: 12px; 
+            font-size: 11px; 
+            font-weight: 600;
+        }
+        .badge.normal { background: #d4edda; color: #155724; }
+        .badge.warning { background: #fff3cd; color: #856404; }
+        .badge.high { background: #f8d7da; color: #721c24; }
+        .badge.medium { background: #fff3cd; color: #856404; }
+        .badge.low { background: #d4edda; color: #155724; }
+        
+        .positive { color: #28a745; font-weight: 600; }
+        .negative { color: #dc3545; font-weight: 600; }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Advanced Real-Time Dashboard</h1>
+        <span class="status-badge live" id="status">● LIVE - MongoDB NoSQL</span>
+        <span style="float: right; color: #666; font-size: 14px;" id="lastUpdate">Last updated: --</span>
+    </div>
+
+    <div class="container">
+        <!-- Real-time Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>📡 Average Temperature</h3>
+                <div class="value" id="avg-temp">--°C</div>
+                <div class="label">From IoT Sensors</div>
+            </div>
+            <div class="stat-card">
+                <h3>💻 CPU Usage</h3>
+                <div class="value" id="cpu-usage">--%</div>
+                <div class="label">Server Metrics</div>
+            </div>
+            <div class="stat-card">
+                <h3>📈 Avg Stock Price</h3>
+                <div class="value" id="avg-stock">$--</div>
+                <div class="label">Market Data</div>
+            </div>
+            <div class="stat-card">
+                <h3>🛒 Total Revenue</h3>
+                <div class="value" id="total-revenue">$--</div>
+                <div class="label">E-commerce</div>
+            </div>
+            <div class="stat-card">
+                <h3>❤️ Total Engagement</h3>
+                <div class="value" id="social-engagement">--</div>
+                <div class="label">Social Media</div>
+            </div>
+            <div class="stat-card">
+                <h3>🚗 Traffic Avg</h3>
+                <div class="value" id="traffic-vehicles">--</div>
+                <div class="label">Vehicles/Location</div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <!-- Temperature & Stock Price Chart -->
+            <div class="chart-card">
+                <h2>🌡️ Temperature vs 📈 Stock Prices</h2>
+                <div class="chart-container">
+                    <canvas id="tempStockChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Server Metrics Chart -->
+            <div class="chart-card">
+                <h2>💻 Server Performance Metrics</h2>
+                <div class="chart-container">
+                    <canvas id="serverChart"></canvas>
+                </div>
+            </div>
+
+            <!-- E-commerce Revenue Chart -->
+            <div class="chart-card">
+                <h2>🛒 Revenue by Category (MongoDB Aggregation)</h2>
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Social Media Engagement Chart -->
+            <div class="chart-card">
+                <h2>📱 Social Media Engagement by Platform</h2>
+                <div class="chart-container">
+                    <canvas id="socialChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Weather Chart -->
+            <div class="chart-card">
+                <h2>🌤️ Weather Across Cities</h2>
+                <div class="chart-container">
+                    <canvas id="weatherChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Traffic Chart -->
+            <div class="chart-card">
+                <h2>🚗 Traffic Congestion Levels</h2>
+                <div class="chart-container">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Tables -->
+        <div class="data-tables">
+            <!-- Recent Sensor Data -->
+            <div class="table-card">
+                <h2>📡 Recent IoT Sensor Data</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table id="sensorTable">
+                        <thead>
+                            <tr>
+                                <th>Sensor ID</th>
+                                <th>Temp</th>
+                                <th>Humidity</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="table-card">
+                <h2>🛒 Recent E-commerce Transactions</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table id="ecommerceTable">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Product</th>
+                                <th>Amount</th>
+                                <th>Location</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Stock Data -->
+            <div class="table-card">
+                <h2>📈 Stock Market Data</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table id="stockTable">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Price</th>
+                                <th>Change %</th>
+                                <th>Volume</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Traffic Data -->
+            <div class="table-card">
+                <h2>🚗 Traffic Monitoring</h2>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table id="trafficTable">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Vehicles</th>
+                                <th>Avg Speed</th>
+                                <th>Congestion</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>🗄️ Powered by MongoDB (NoSQL) | 📊 Real-Time Data Visualization | ⚡ Auto-updates every 5 seconds</p>
+        <p>Data Sources: IoT Sensors | Server Metrics | Stock Market | Weather | E-commerce | Social Media | Traffic</p>
+    </div>
+
+    <script src="/static/js/advanced_dashboard.js?v=2"></script>
+</body>
+</html>
